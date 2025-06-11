@@ -34,13 +34,6 @@ const { Title: AntTitle, Paragraph } = Typography;
 const { Content } = Layout;
 const { Option } = Select;
 
-// 常量定义
-const VSHUNT_MAX = 0.08192; // 最大分流电压 (V)，分流电压测量范围为±81.92mV
-const DEFAULT_MAX_CURRENT = 1; // 默认最大测量电流 (A)
-const DEFAULT_MIN_CURRENT = 1000; // 默认最小测量电流 (nA)
-const DEFAULT_ADC_RESOLUTION = 2.5; // 默认ADC分辨率 (μV/LSB)
-const DEFAULT_MEASURE_VOLTAGE = 3.3; // 默认测量电压 (V)
-
 // 常见电阻阻值选项（从1mΩ到1MΩ）
 const RESISTOR_VALUES = [
   { value: 0.001, label: '1mΩ' },
@@ -131,13 +124,13 @@ const formatValue = (value: number, unit: string): string => {
 };
 
 function App() {
-  const [numRanges, setNumRanges] = useState<number>(5);
-  const [adcBits, setAdcBits] = useState<number>(12);
-  const [adcResolution, setAdcResolution] = useState<number>(2.5);
-  const [vbus, setVbus] = useState<number>(12);
-  const [maxCurrent, setMaxCurrent] = useState<number>(1);
-  const [minCurrent, setMinCurrent] = useState<number>(1000);
-  const [hysteresisFactor, setHysteresisFactor] = useState<number>(0.05);
+  const [numRanges, setNumRanges] = useState<number>(3); // 档位数量
+  const [adcBits, setAdcBits] = useState<number>(16); // ADC位数
+  const [adcResolution, setAdcResolution] = useState<number>(2.5); // μV/LSB
+  const [vbus, setVbus] = useState<number>(3.3); // V
+  const [maxCurrent, setMaxCurrent] = useState<number>(1); // A
+  const [minCurrent, setMinCurrent] = useState<number>(1000); // nA
+  const [hysteresisFactor, setHysteresisFactor] = useState<number>(0.05); // 滞回带系数
   const [shuntConfigs, setShuntConfigs] = useState<ShuntConfig[]>([]);
   const [isLogScale, setIsLogScale] = useState<boolean>(true); // 添加坐标轴类型状态
   const [isHelpVisible, setIsHelpVisible] = useState(false);
@@ -147,10 +140,11 @@ function App() {
     // 计算ADC相关参数
     const adcSteps = Math.pow(2, adcBits); // ADC位数，例如12位ADC为2^12=4096
     const vshuntLsb = adcResolution * 1e-6; // 分流电压最小分辨率，将μV转换为V
+    const vshuntMax = vshuntLsb * adcSteps; // 最大分流电压 = 分辨率 × 2^ADC位数
     
     // 计算该档位的最大电流（基于分流电压限制）
     // 最大电流 = 最大分流电压/采样电阻
-    const maxCurrentForRange = VSHUNT_MAX / resistance;
+    const maxCurrentForRange = vshuntMax / resistance;
     
     // 计算该档位的最小可测量电流（基于ADC分辨率）
     // 最小电流 = 最小可分辨电压 / 采样电阻
@@ -225,19 +219,25 @@ function App() {
     const resistances: number[] = [];
     const usedResistances = new Set<number>(); // 用于跟踪已使用的电阻值
     
+    // 计算ADC相关参数
+    const adcSteps = Math.pow(2, adcBits);
+    const vshuntLsb = adcResolution * 1e-6;
+    const vshuntMax = vshuntLsb * adcSteps;
+    
     // 计算第一个档位的电阻值（基于最大测量电流）
-    const firstMinResistance = VSHUNT_MAX / (maxCurrent * (1 - hysteresisFactor));
+    // 确保理论最大测量范围大于输入的最大测量电流
+    const firstMinResistance = vshuntMax / maxCurrent;
     
     // 找到最接近的标准电阻值
     let currentResistance = RESISTOR_VALUES.reduce((prev, curr) => {
       return Math.abs(curr.value - firstMinResistance) < Math.abs(prev.value - firstMinResistance) ? curr : prev;
     }).value;
     
-    // 如果标准值小于最小电阻，找到下一个较大的标准值
-    while (currentResistance < firstMinResistance) {
+    // 如果标准值大于最小电阻，找到下一个较小的标准值
+    while (currentResistance > firstMinResistance) {
       const currentIndex = RESISTOR_VALUES.findIndex(r => r.value === currentResistance);
-      if (currentIndex < RESISTOR_VALUES.length - 1) {
-        currentResistance = RESISTOR_VALUES[currentIndex + 1].value;
+      if (currentIndex > 0) {
+        currentResistance = RESISTOR_VALUES[currentIndex - 1].value;
       } else {
         break;
       }
@@ -678,6 +678,14 @@ function App() {
                     onChange={v => setAdcResolution(Number(v))}
                     style={{ width: '100%' }}
                   />
+                </Form.Item>
+                <Form.Item label="最大分流电压">
+                  <div style={{ fontSize: '13px' }}>
+                    {formatValue(adcResolution * 1e-6 * Math.pow(2, adcBits), 'V')}
+                    <span style={{ fontSize: '12px', color: '#666', marginLeft: '4px' }}>
+                      (分辨率 {adcResolution}μV/LSB × 2^{adcBits})
+                    </span>
+                  </div>
                 </Form.Item>
                 <Form.Item label="测量电压 (V)">
                   <InputNumber
