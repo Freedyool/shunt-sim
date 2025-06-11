@@ -605,12 +605,17 @@ function App() {
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
-      <Content style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 24px 0' }}>
+      <Content style={{ maxWidth: 1400, margin: '0 auto', padding: '32px 24px' }}>
         <Row gutter={[24, 24]}>
           <Col span={24}>
             <Card bordered={false} style={{ background: 'transparent' }}>
-              <Space align="center">
-                <AntTitle level={2} style={{ margin: 0 }}>多档位电流测量范围优化工具</AntTitle>
+              <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Space direction="vertical" size={4}>
+                  <AntTitle level={2} style={{ margin: 0 }}>多档位电流测量范围优化工具</AntTitle>
+                  <Paragraph style={{ margin: 0, color: '#666' }}>
+                    基于可配置ADC位数的测量范围与精度模拟，支持多档位自动优化
+                  </Paragraph>
+                </Space>
                 <Space>
                   <Button 
                     type="text" 
@@ -627,9 +632,6 @@ function App() {
                   </Button>
                 </Space>
               </Space>
-              <Paragraph style={{ marginTop: 8, marginBottom: 0 }}>
-                基于可配置ADC位数的测量范围与精度模拟，支持多档位自动优化
-              </Paragraph>
             </Card>
           </Col>
         </Row>
@@ -640,7 +642,7 @@ function App() {
               title="总配置参数" 
               bordered
               style={{ height: '100%' }}
-              bodyStyle={{ padding: '16px' }}
+              bodyStyle={{ padding: '20px' }}
             >
               <Form layout="vertical" size="small">
                 <Row gutter={[16, 16]}>
@@ -657,6 +659,20 @@ function App() {
                     </Form.Item>
                   </Col>
                   <Col span={12}>
+                    <Form.Item label="测量电压 (V)">
+                      <InputNumber
+                        min={0.1}
+                        max={36}
+                        step={0.1}
+                        value={vbus}
+                        onChange={v => setVbus(Number(v))}
+                        style={{ width: '100%' }}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={[16, 16]}>
+                  <Col span={12}>
                     <Form.Item label="ADC位数">
                       <InputNumber
                         min={8}
@@ -668,55 +684,54 @@ function App() {
                       />
                     </Form.Item>
                   </Col>
+                  <Col span={12}>
+                    <Form.Item label="ADC分辨率 (μV/LSB)">
+                      <InputNumber
+                        min={0.1}
+                        max={1000}
+                        step={0.1}
+                        value={adcResolution}
+                        onChange={v => setAdcResolution(Number(v))}
+                        style={{ width: '100%' }}
+                      />
+                    </Form.Item>
+                  </Col>
                 </Row>
-                <Form.Item label="ADC分辨率 (μV/LSB)">
-                  <InputNumber
-                    min={0.1}
-                    max={1000}
-                    step={0.1}
-                    value={adcResolution}
-                    onChange={v => setAdcResolution(Number(v))}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
                 <Form.Item label="最大分流电压">
-                  <div style={{ fontSize: '13px' }}>
+                  <div style={{ fontSize: '13px', color: '#666' }}>
                     {formatValue(adcResolution * 1e-6 * Math.pow(2, adcBits), 'V')}
-                    <span style={{ fontSize: '12px', color: '#666', marginLeft: '4px' }}>
+                    <span style={{ fontSize: '12px', color: '#999', marginLeft: '4px' }}>
                       (分辨率 {adcResolution}μV/LSB × 2^{adcBits})
                     </span>
                   </div>
                 </Form.Item>
-                <Form.Item label="测量电压 (V)">
-                  <InputNumber
-                    min={0.1}
-                    max={36}
-                    step={0.1}
-                    value={vbus}
-                    onChange={v => setVbus(Number(v))}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-                <Form.Item label="最大测量电流 (A)">
-                  <InputNumber
-                    min={0.001}
-                    max={100}
-                    step={0.001}
-                    value={maxCurrent}
-                    onChange={v => setMaxCurrent(Number(v))}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-                <Form.Item label="最小测量电流 (nA)">
-                  <InputNumber
-                    min={1}
-                    max={1000}
-                    step={1}
-                    value={minCurrent}
-                    onChange={v => setMinCurrent(Number(v))}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
+                <Divider style={{ margin: '12px 0' }} />
+                <Row gutter={[16, 16]}>
+                  <Col span={12}>
+                    <Form.Item label="最大测量电流 (A)">
+                      <InputNumber
+                        min={0.001}
+                        max={100}
+                        step={0.001}
+                        value={maxCurrent}
+                        onChange={v => setMaxCurrent(Number(v))}
+                        style={{ width: '100%' }}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="最小测量电流 (nA)">
+                      <InputNumber
+                        min={1}
+                        max={1000}
+                        step={1}
+                        value={minCurrent}
+                        onChange={v => setMinCurrent(Number(v))}
+                        style={{ width: '100%' }}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
                 <Form.Item label="滞回带系数">
                   <InputNumber
                     min={1}
@@ -728,7 +743,7 @@ function App() {
                     addonAfter="%"
                   />
                 </Form.Item>
-                <Form.Item style={{ marginBottom: 0 }}>
+                <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
                   <Button type="primary" onClick={handleRegenerateResistances} style={{ width: '100%' }}>
                     重新生成采样电阻
                   </Button>
@@ -742,7 +757,7 @@ function App() {
               title="测量特性" 
               bordered
               style={{ height: '100%' }}
-              bodyStyle={{ padding: '16px' }}
+              bodyStyle={{ padding: '20px' }}
               extra={
                 <Button 
                   type={isLogScale ? "default" : "primary"}
@@ -752,14 +767,14 @@ function App() {
                 </Button>
               }
             >
-              <div style={{ height: '500px' }}>
+              <div style={{ height: '450px' }}>
                 <Chart type='bar' options={chartOptions} data={chartData} />
               </div>
             </Card>
           </Col>
         </Row>
 
-        <Row gutter={[16, 16]} style={{ marginTop: 24, marginBottom: 24 }}>
+        <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
           {shuntConfigs.map((config, index) => (
             <Col xs={24} sm={12} md={8} lg={6} key={index}>
               <Card 
@@ -769,12 +784,12 @@ function App() {
                   boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                   borderColor: config.rangeOverlap?.isValid && (index !== 0 || config.maxCurrent >= maxCurrent) ? '#b7eb8f' : '#ffccc7'
                 }}
-                bodyStyle={{ padding: '12px' }}
+                bodyStyle={{ padding: '16px' }}
               >
-                <AntTitle level={5} style={{ margin: '0 0 12px 0' }}>档位 {index + 1}</AntTitle>
+                <AntTitle level={5} style={{ margin: '0 0 16px 0' }}>档位 {index + 1}</AntTitle>
                 <Space direction="vertical" style={{ width: '100%' }} size="small">
                   <Form layout="vertical" size="small">
-                    <Form.Item label="采样电阻" style={{ marginBottom: '8px' }}>
+                    <Form.Item label="采样电阻" style={{ marginBottom: '12px' }}>
                       <Select
                         value={config.resistance}
                         style={{ width: '100%' }}
@@ -787,7 +802,7 @@ function App() {
                         ))}
                       </Select>
                     </Form.Item>
-                    <Form.Item label="电阻精度" style={{ marginBottom: '8px' }}>
+                    <Form.Item label="电阻精度" style={{ marginBottom: '12px' }}>
                       <Select
                         value={config.resistanceError}
                         style={{ width: '100%' }}
@@ -801,16 +816,16 @@ function App() {
                       </Select>
                     </Form.Item>
                   </Form>
-                  <Divider style={{ margin: '8px 0' }} />
-                  <Space direction="vertical" style={{ width: '100%' }} size={4}>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <Space direction="vertical" style={{ width: '100%' }} size={6}>
                     <div>
-                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '1px' }}>理论测量范围</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>理论测量范围</div>
                       <div style={{ fontSize: '13px' }}>
                         {formatValue(config.minCurrent, 'A')} ~ {formatValue(config.maxCurrent, 'A')}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '1px' }}>实际测量范围</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>实际测量范围</div>
                       <div style={{ fontSize: '13px' }}>
                         {formatValue(config.downThreshold, 'A')} ~ {formatValue(config.upThreshold, 'A')}
                         <span style={{ fontSize: '12px', color: '#666', marginLeft: '4px' }}>
@@ -820,17 +835,17 @@ function App() {
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '1px' }}>电流分辨率</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>电流分辨率</div>
                       <div style={{ fontSize: '13px' }}>{formatValue(config.currentResolution, 'A')}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '1px' }}>负载电阻</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>负载电阻</div>
                       <div style={{ fontSize: '13px' }}>
                         {formatValue(config.minLoadResistance, 'Ω')} ~ {formatValue(config.maxLoadResistance, 'Ω')}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '1px' }}>最大理论误差</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>最大理论误差</div>
                       <div style={{ fontSize: '13px' }}>
                         {config.precision.toFixed(2)} %
                         <span style={{ fontSize: '12px', color: '#666', marginLeft: '4px' }}>
