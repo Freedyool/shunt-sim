@@ -37,8 +37,8 @@ const { Option } = Select;
 // 常量定义
 const VSHUNT_MAX = 0.08192; // 最大分流电压 (V)，分流电压测量范围为±81.92mV
 const DEFAULT_MAX_CURRENT = 1; // 默认最大测量电流 (A)
-const DEFAULT_MIN_CURRENT = 100; // 默认最小测量电流 (nA)
-const DEFAULT_ADC_VREF = 2.048; // 默认ADC参考电压 (V)
+const DEFAULT_MIN_CURRENT = 1000; // 默认最小测量电流 (nA)
+const DEFAULT_ADC_RESOLUTION = 2.5; // 默认ADC分辨率 (μV/LSB)
 const DEFAULT_MEASURE_VOLTAGE = 3.3; // 默认测量电压 (V)
 
 // 常见电阻阻值选项（从1mΩ到1MΩ）
@@ -133,7 +133,7 @@ const formatValue = (value: number, unit: string): string => {
 function App() {
   const [numRanges, setNumRanges] = useState<number>(5);
   const [adcBits, setAdcBits] = useState<number>(12);
-  const [adcVref, setAdcVref] = useState<number>(2.048);
+  const [adcResolution, setAdcResolution] = useState<number>(2.5);
   const [vbus, setVbus] = useState<number>(12);
   const [maxCurrent, setMaxCurrent] = useState<number>(1);
   const [minCurrent, setMinCurrent] = useState<number>(1000);
@@ -145,8 +145,8 @@ function App() {
   // 计算单个档位的配置
   const calculateShuntConfig = (resistance: number, resistanceError: number, adcBits: number, isFirstRange: boolean = false, isLastRange: boolean = false): ShuntConfig => {
     // 计算ADC相关参数
-    const adcResolution = Math.pow(2, adcBits); // ADC分辨率，例如12位ADC为2^12=4096
-    const vshuntLsb = adcVref / (adcResolution / 2); // 分流电压最小分辨率
+    const adcSteps = Math.pow(2, adcBits); // ADC位数，例如12位ADC为2^12=4096
+    const vshuntLsb = adcResolution * 1e-6; // 分流电压最小分辨率，将μV转换为V
     
     // 计算该档位的最大电流（基于分流电压限制）
     // 最大电流 = 最大分流电压/采样电阻
@@ -157,8 +157,8 @@ function App() {
     const minCurrentForRange = vshuntLsb / resistance;
     
     // 计算该档位的电流分辨率
-    // 电流分辨率 = 最大电流 / (ADC位数/2)
-    const currentResolution = maxCurrentForRange / (adcResolution / 2);
+    // 电流分辨率 = 最小可分辨电压 / 采样电阻
+    const currentResolution = vshuntLsb / resistance;
     
     // 计算升档和降档电流阈值（基于滞回带系数）
     let upThreshold = maxCurrentForRange * (1 - hysteresisFactor);
@@ -354,7 +354,7 @@ function App() {
     // 检查测量范围交叠
     const configsWithOverlap = checkRangeOverlap(configs);
     setShuntConfigs(configsWithOverlap);
-  }, [numRanges, adcBits, maxCurrent, adcVref, hysteresisFactor, vbus]);
+  }, [numRanges, adcBits, maxCurrent, adcResolution, hysteresisFactor, vbus]);
 
   // 处理电阻值变化
   const handleResistanceChange = (index: number, value: number) => {
@@ -571,7 +571,7 @@ function App() {
       globalConfig: {
         numRanges,
         adcBits,
-        adcVref,
+        adcResolution,
         vbus,
         maxCurrent,
         minCurrent,
@@ -669,13 +669,13 @@ function App() {
                     </Form.Item>
                   </Col>
                 </Row>
-                <Form.Item label="ADC参考电压 (V)">
+                <Form.Item label="ADC分辨率 (μV/LSB)">
                   <InputNumber
                     min={0.1}
-                    max={5}
-                    step={0.001}
-                    value={adcVref}
-                    onChange={v => setAdcVref(Number(v))}
+                    max={1000}
+                    step={0.1}
+                    value={adcResolution}
+                    onChange={v => setAdcResolution(Number(v))}
                     style={{ width: '100%' }}
                   />
                 </Form.Item>
@@ -866,7 +866,7 @@ function App() {
               <ul>
                 <li><strong>档位数量</strong>：设置需要配置的测量档位数量</li>
                 <li><strong>ADC位数</strong>：设置 ADC 的分辨率位数</li>
-                <li><strong>ADC参考电压</strong>：ADC 的参考电压</li>
+                <li><strong>ADC分辨率</strong>：ADC 的最小分辨电压</li>
                 <li><strong>测量电压</strong>：被测电路的供电电压</li>
                 <li><strong>最大测量电流</strong>：期望测量的最大电流值</li>
                 <li><strong>最小测量电流</strong>：期望测量的最小电流值</li>
