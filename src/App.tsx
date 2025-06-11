@@ -765,9 +765,9 @@ function App() {
               <Card 
                 bordered 
                 style={{ 
-                  background: config.rangeOverlap?.isValid ? '#f6ffed' : '#fff2f0',
+                  background: config.rangeOverlap?.isValid && (index !== 0 || config.maxCurrent >= maxCurrent) ? '#f6ffed' : '#fff2f0',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                  borderColor: config.rangeOverlap?.isValid ? '#b7eb8f' : '#ffccc7'
+                  borderColor: config.rangeOverlap?.isValid && (index !== 0 || config.maxCurrent >= maxCurrent) ? '#b7eb8f' : '#ffccc7'
                 }}
                 bodyStyle={{ padding: '12px' }}
               >
