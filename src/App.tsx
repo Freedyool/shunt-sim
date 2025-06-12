@@ -14,7 +14,9 @@ import {
   Legend,
   LogarithmicScale,
   ChartData,
-  ChartOptions
+  ChartOptions,
+  BarController,
+  LineController
 } from 'chart.js';
 import { QuestionCircleOutlined, DownloadOutlined } from '@ant-design/icons';
 
@@ -27,7 +29,9 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  LogarithmicScale
+  LogarithmicScale,
+  BarController,
+  LineController
 );
 
 const { Title: AntTitle, Paragraph } = Typography;
