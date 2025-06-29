@@ -134,7 +134,7 @@ function App() {
   const [vbus, setVbus] = useState<number>(3.3); // V
   const [maxCurrent, setMaxCurrent] = useState<number>(1); // A
   const [minCurrent, setMinCurrent] = useState<number>(1000); // nA
-  const [hysteresisFactor, setHysteresisFactor] = useState<number>(0.05); // 滞回带系数
+  const [hysteresisFactor, setHysteresisFactor] = useState<number>(0.01); // 滞回带系数
   const [shuntConfigs, setShuntConfigs] = useState<ShuntConfig[]>([]);
   const [isLogScale, setIsLogScale] = useState<boolean>(true); // 添加坐标轴类型状态
   const [isHelpVisible, setIsHelpVisible] = useState(false);
@@ -739,12 +739,12 @@ function App() {
                 <Form.Item label="滞回带系数">
                   <InputNumber
                     min={1}
-                    max={50}
+                    max={500}
                     step={1}
-                    value={hysteresisFactor * 100}
-                    onChange={v => setHysteresisFactor(Number(v) / 100)}
+                    value={hysteresisFactor * 1000}
+                    onChange={v => setHysteresisFactor(Number(v) / 1000)}
                     style={{ width: '100%' }}
-                    addonAfter="%"
+                    addonAfter="‰"
                   />
                 </Form.Item>
                 <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
@@ -846,6 +846,15 @@ function App() {
                       <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>负载电阻</div>
                       <div style={{ fontSize: '13px' }}>
                         {formatValue(config.minLoadResistance, 'Ω')} ~ {formatValue(config.maxLoadResistance, 'Ω')}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>最大功耗</div>
+                      <div style={{ fontSize: '13px' }}>
+                        {formatValue(Math.pow(config.upThreshold, 2) * config.resistance, 'W')}
+                        <span style={{ fontSize: '12px', color: '#666', marginLeft: '4px' }}>
+                          ({formatValue(config.upThreshold, 'A')}² × {formatValue(config.resistance, 'Ω')})
+                        </span>
                       </div>
                     </div>
                     <div>
