@@ -75,12 +75,54 @@ const RESISTOR_PRECISION = [
   { value: 0.01, label: '0.01%' },
   { value: 0.05, label: '0.05%' },
   { value: 0.1, label: '0.1%' },
-  { value: 0.25, label: '0.25%' },
-  { value: 0.5, label: '0.5%' },
-  { value: 1, label: '1%' },
-  { value: 2, label: '2%' },
-  { value: 5, label: '5%' },
-  { value: 10, label: '10%' },
+];
+
+// 预设配置
+const PRESET_CONFIGS = [
+  {
+    name: 'INA219 (PGA=1)',
+    description: '双向电流/功率监控器，12位ADC',
+    config: {
+      adcBits: 12,
+      adcResolution: 10, // 40μV/LSB (PGA=1, 40mV最大分流电压)
+      vbusRange: { min: 0, max: 26 }, // 测量电压范围 (V)
+      currentRange: { min: 0.001, max: 3.2 }, // 测量电流范围 (A)
+      isBidirectional: false // 单向测量（借助PGA实现的双向测量）
+    }
+  },
+  {
+    name: 'INA226',
+    description: '双向电流/功率监控器，16位ADC',
+    config: {
+      adcBits: 16,
+      adcResolution: 2.5, // 2.5μV/LSB (81.92mV最大分流电压)
+      vbusRange: { min: 0, max: 36 }, // 测量电压范围 (V)
+      currentRange: { min: 0.001, max: 15 }, // 测量电流范围 (A)
+      isBidirectional: true // 双向测量
+    }
+  },
+  {
+    name: 'INA228 (ADCRANGE=0)',
+    description: '高精度电流/功率监控器，20位ADC',
+    config: {
+      adcBits: 20,
+      adcResolution: 0.3125, // 312.5nV/LSB (163.84mV最大分流电压)
+      vbusRange: { min: 0, max: 85 }, // 测量电压范围 (V)
+      currentRange: { min: 0.001, max: 20 }, // 测量电流范围 (A)
+      isBidirectional: true // 双向测量
+    }
+  },
+  {
+    name: 'INA3221',
+    description: '三通道电流/电压监控器，12位ADC',
+    config: {
+      adcBits: 13,
+      adcResolution: 40, // 40μV/LSB (163.8mV最大分流电压)
+      vbusRange: { min: 0, max: 26 }, // 测量电压范围 (V)
+      currentRange: { min: 0.001, max: 1.6 }, // 测量电流范围 (A)
+      isBidirectional: true // 双向测量
+    }
+  }
 ];
 
 interface ShuntConfig {
@@ -134,17 +176,27 @@ function App() {
   const [vbus, setVbus] = useState<number>(3.3); // V
   const [maxCurrent, setMaxCurrent] = useState<number>(1); // A
   const [minCurrent, setMinCurrent] = useState<number>(1000); // nA
-  const [hysteresisFactor, setHysteresisFactor] = useState<number>(0.01); // 滞回带系数
+  const [hysteresisFactor, setHysteresisFactor] = useState<number>(0.005); // 滞回带系数
   const [shuntConfigs, setShuntConfigs] = useState<ShuntConfig[]>([]);
   const [isLogScale, setIsLogScale] = useState<boolean>(true); // 添加坐标轴类型状态
   const [isHelpVisible, setIsHelpVisible] = useState(false);
+  const [isBidirectional, setIsBidirectional] = useState<boolean>(true); // 单双向电流测量状态，默认双向
+  
+  // 测量范围限制
+  const [vbusRange, setVbusRange] = useState({ min: 0.1, max: 100 }); // 默认测量电压范围
+  const [currentRange, setCurrentRange] = useState({ min: 0.001, max: 100 }); // 默认测量电流范围
 
   // 计算单个档位的配置
   const calculateShuntConfig = (resistance: number, resistanceError: number, adcBits: number, isFirstRange: boolean = false, isLastRange: boolean = false): ShuntConfig => {
     // 计算ADC相关参数
     const adcSteps = Math.pow(2, adcBits); // ADC位数，例如12位ADC为2^12=4096
     const vshuntLsb = adcResolution * 1e-6; // 分流电压最小分辨率，将μV转换为V
-    const vshuntMax = vshuntLsb * adcSteps; // 最大分流电压 = 分辨率 × 2^ADC位数
+    // 根据单双向测量模式计算最大分流电压
+    // 单向：分辨率 × 2^ADC位数
+    // 双向：±分辨率 × 2^(ADC位数-1)
+    const vshuntMax = isBidirectional 
+      ? vshuntLsb * Math.pow(2, adcBits - 1) 
+      : vshuntLsb * adcSteps;
     
     // 计算该档位的最大电流（基于分流电压限制）
     // 最大电流 = 最大分流电压/采样电阻
@@ -226,7 +278,10 @@ function App() {
     // 计算ADC相关参数
     const adcSteps = Math.pow(2, adcBits);
     const vshuntLsb = adcResolution * 1e-6;
-    const vshuntMax = vshuntLsb * adcSteps;
+    // 根据单双向测量模式计算最大分流电压
+    const vshuntMax = isBidirectional 
+      ? vshuntLsb * Math.pow(2, adcBits - 1) 
+      : vshuntLsb * adcSteps;
     
     // 计算第一个档位的电阻值（基于最大测量电流）
     // 确保理论最大测量范围大于输入的最大测量电流
@@ -358,7 +413,7 @@ function App() {
     // 检查测量范围交叠
     const configsWithOverlap = checkRangeOverlap(configs);
     setShuntConfigs(configsWithOverlap);
-  }, [numRanges, adcBits, maxCurrent, adcResolution, hysteresisFactor, vbus]);
+  }, [numRanges, adcBits, maxCurrent, adcResolution, hysteresisFactor, vbus, isBidirectional]);
 
   // 处理电阻值变化
   const handleResistanceChange = (index: number, value: number) => {
@@ -405,6 +460,25 @@ function App() {
     // 重新检查交叠情况
     const configsWithOverlap = checkRangeOverlap(newConfigs);
     setShuntConfigs(configsWithOverlap);
+  };
+
+  // 加载预设配置
+  const handleLoadPreset = (presetName: string) => {
+    const preset = PRESET_CONFIGS.find(p => p.name === presetName);
+    if (!preset) return;
+    
+    const { config } = preset;
+    setAdcBits(config.adcBits);
+    setAdcResolution(config.adcResolution);
+    setVbusRange(config.vbusRange);
+    setCurrentRange(config.currentRange);
+    setIsBidirectional(config.isBidirectional);
+    
+    // 调整当前值以符合新的范围限制
+    if (vbus < config.vbusRange.min) setVbus(config.vbusRange.min);
+    if (vbus > config.vbusRange.max) setVbus(config.vbusRange.max);
+    if (maxCurrent < config.currentRange.min) setMaxCurrent(config.currentRange.min);
+    if (maxCurrent > config.currentRange.max) setMaxCurrent(config.currentRange.max);
   };
 
   // 准备图表数据
@@ -608,7 +682,27 @@ function App() {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+    <>
+      <style>
+        {`
+          .preset-button:hover {
+            border-color: #1677ff !important;
+            background: #f0f8ff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(24, 144, 255, 0.15) !important;
+          }
+          .preset-button:active {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2) !important;
+          }
+          .preset-button:focus {
+            outline: none;
+            border-color: #1677ff !important;
+            box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2) !important;
+          }
+        `}
+      </style>
+      <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
       <Content style={{ maxWidth: 1400, margin: '0 auto', padding: '32px 24px' }}>
         <Row gutter={[24, 24]}>
           <Col span={24}>
@@ -641,9 +735,102 @@ function App() {
         </Row>
 
         <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
+          {/* 预设配置卡片 */}
+          <Col span={24}>
+            <Card 
+              title="快速预设" 
+              bordered
+              bodyStyle={{ padding: '16px' }}
+            >
+              <Row gutter={[12, 12]}>
+                {PRESET_CONFIGS.map(preset => (
+                  <Col xs={24} sm={12} md={6} key={preset.name}>
+                    <Button
+                      type="default"
+                      onClick={() => handleLoadPreset(preset.name)}
+                      style={{ 
+                        width: '100%', 
+                        textAlign: 'left',
+                        height: 'auto',
+                        padding: '18px 22px',
+                        borderRadius: '12px',
+                        border: '1px solid #e6f3ff',
+                        background: '#fafbff',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: '0 2px 8px rgba(24, 144, 255, 0.08)'
+                      }}
+                      className="preset-button"
+                    >
+                      <div>
+                        <div style={{ 
+                          fontWeight: '600', 
+                          fontSize: '16px', 
+                          color: '#1677ff',
+                          marginBottom: '8px',
+                          letterSpacing: '0.5px'
+                        }}>
+                          {preset.name}
+                        </div>
+                        <div style={{ 
+                          fontSize: '13px', 
+                          color: '#525252', 
+                          lineHeight: '1.5',
+                          marginBottom: '10px',
+                          fontWeight: '400'
+                        }}>
+                          {preset.description}
+                        </div>
+                        <div style={{ 
+                          fontSize: '11px', 
+                          color: '#737373',
+                          padding: '4px 8px',
+                          background: '#f1f5f9',
+                          borderRadius: '6px',
+                          display: 'inline-block',
+                          marginBottom: '8px',
+                          border: '1px solid #e2e8f0',
+                          fontWeight: '500'
+                        }}>
+                          {preset.config.adcBits}位ADC • {preset.config.adcResolution}μV/LSB
+                        </div>
+                        <div style={{ 
+                          fontSize: '11px', 
+                          color: '#64748b',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          fontWeight: '500'
+                        }}>
+                          <span style={{ 
+                            padding: '2px 6px',
+                            background: '#f8fafc',
+                            borderRadius: '4px',
+                            border: '1px solid #e2e8f0'
+                          }}>
+                            电压: {preset.config.vbusRange.min}-{preset.config.vbusRange.max}V
+                          </span>
+                          <span style={{ 
+                            padding: '2px 6px',
+                            background: '#f8fafc',
+                            borderRadius: '4px',
+                            border: '1px solid #e2e8f0'
+                          }}>
+                            电流: 0-{preset.config.currentRange.max}A
+                          </span>
+                        </div>
+                      </div>
+                    </Button>
+                  </Col>
+                ))}
+              </Row>
+            </Card>
+          </Col>
+        </Row>
+
+        <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
           <Col xs={24} lg={8}>
             <Card 
-              title="总配置参数" 
+              title="参数配置" 
               bordered
               style={{ height: '100%' }}
               bodyStyle={{ padding: '20px' }}
@@ -665,8 +852,8 @@ function App() {
                   <Col span={12}>
                     <Form.Item label="测量电压 (V)">
                       <InputNumber
-                        min={0.1}
-                        max={36}
+                        min={vbusRange.min}
+                        max={vbusRange.max}
                         step={0.1}
                         value={vbus}
                         onChange={v => setVbus(Number(v))}
@@ -691,7 +878,7 @@ function App() {
                   <Col span={12}>
                     <Form.Item label="ADC分辨率 (μV/LSB)">
                       <InputNumber
-                        min={0.1}
+                        min={0.01}
                         max={1000}
                         step={0.1}
                         value={adcResolution}
@@ -702,11 +889,33 @@ function App() {
                   </Col>
                 </Row>
                 <Form.Item label="最大分流电压">
-                  <div style={{ fontSize: '13px', color: '#666' }}>
-                    {formatValue(adcResolution * 1e-6 * Math.pow(2, adcBits), 'V')}
-                    <span style={{ fontSize: '12px', color: '#999', marginLeft: '4px' }}>
-                      (分辨率 {adcResolution}μV/LSB × 2^{adcBits})
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ fontSize: '13px', color: '#666' }}>
+                      {isBidirectional ? '±' : ''}{formatValue(
+                        isBidirectional 
+                          ? adcResolution * 1e-6 * Math.pow(2, adcBits - 1)
+                          : adcResolution * 1e-6 * Math.pow(2, adcBits), 
+                        'V'
+                      )}
+                      <span style={{ fontSize: '12px', color: '#999', marginLeft: '4px' }}>
+                        ({isBidirectional ? '±' : ''}分辨率 {adcResolution}μV/LSB × 2^{isBidirectional ? adcBits - 1 : adcBits})
+                      </span>
+                    </div>
+                    <div style={{ marginLeft: 'auto' }}>
+                      <Button
+                        size="small"
+                        type={isBidirectional ? "primary" : "default"}
+                        onClick={() => setIsBidirectional(!isBidirectional)}
+                        style={{ 
+                          fontSize: '11px',
+                          height: '24px',
+                          padding: '0 8px',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        {isBidirectional ? '双向测量' : '单向测量'}
+                      </Button>
+                    </div>
                   </div>
                 </Form.Item>
                 <Divider style={{ margin: '12px 0' }} />
@@ -714,8 +923,8 @@ function App() {
                   <Col span={12}>
                     <Form.Item label="最大测量电流 (A)">
                       <InputNumber
-                        min={0.001}
-                        max={100}
+                        min={currentRange.min}
+                        max={currentRange.max}
                         step={0.001}
                         value={maxCurrent}
                         onChange={v => setMaxCurrent(Number(v))}
@@ -894,7 +1103,19 @@ function App() {
                 <li>自动计算最优采样电阻值</li>
                 <li>实时显示测量范围和精度</li>
                 <li>支持对数/线性坐标切换</li>
+                <li>提供常用电流监控芯片预设配置</li>
               </ul>
+            </div>
+
+            <div>
+              <h3>预设配置</h3>
+              <ul>
+                <li><strong>INA219</strong>：12位ADC，40μV/LSB，320mV最大分流电压，适用于中等精度应用</li>
+                <li><strong>INA226</strong>：16位ADC，2.5μV/LSB，81.92mV最大分流电压，平衡精度与功耗</li>
+                <li><strong>INA228</strong>：20位ADC，312.5nV/LSB，163.84mV最大分流电压，高精度应用</li>
+                <li><strong>INA3221</strong>：12位ADC，40μV/LSB，163.8mV最大分流电压，三通道监控器</li>
+              </ul>
+              <p>点击预设配置按钮可快速加载对应芯片的典型参数，然后根据实际需求进行微调。</p>
             </div>
 
             <div>
@@ -934,6 +1155,7 @@ function App() {
         </Modal>
       </Content>
     </Layout>
+    </>
   );
 }
 
